@@ -1,5 +1,13 @@
 // Require the Client constructor from the pg package
+const { Client } = require('pg');
 
+const CONNECTION_STRING =
+  process.env.DATABASE_URL || "postgres://localhost:5432/phenomena-dev";
+
+console.log("CONNECTION_STRING: ", CONNECTION_STRING);
+
+// new Client('postgres://localhost:5432/phenomena-dev');
+const client = new Client(CONNECTION_STRING);
 // Create a constant, CONNECTION_STRING, from either process.env.DATABASE_URL or postgres://localhost:5432/phenomena-dev
 
 // Create the client using new Client(CONNECTION_STRING)
@@ -19,6 +27,14 @@
  */
 async function getOpenReports() {
   try {
+    const { rows: reports } = await client.query(
+      `SELECT * FROM reports WHERE isOpen = true,
+      `
+    );
+    console.log("reports from getOpenReports: ", reports);
+  } catch {
+
+  }
     // first load all of the reports which are open
     
 
@@ -55,23 +71,29 @@ async function getOpenReports() {
  */
 async function createReport(reportFields) {
   // Get all of the fields from the passed in object
-
-
+    const title = reportFields.title
+    const location = reportFields.location
+    const description = reportFields.description
+    const password = reportFields.password
+}
   try {
     // insert the correct fields into the reports table
     // remember to return the new row from the query
-    
+    const { rows: [ post ] } =  await client.query(`
+    INSERT INTO reports(title, location, description, password)
+    VALUE($1, $2, $3, $4)
+    RETURNING *;
+    ` [title, location, description, password]);
 
     // remove the password from the returned row
-    
+    delete report.password;
 
     // return the new report
-    
-
+    return report;
   } catch (error) {
-    throw error;
+    throw (error);
   }
-}
+ 
 
 /**
  * NOTE: This function is not for use in other files, so we use an _ to
@@ -90,11 +112,18 @@ async function createReport(reportFields) {
 async function _getReport(reportId) {
   try {
     // SELECT the report with id equal to reportId
-    
-
+    const { 
+      rows: [report],
+    } = await client.query(
+      `
+      SELECT *
+      FROM reports
+      WHERE id = ${reportId}`
+    )
+console.log("report from _getReport: ", report)
     // return the report
     
-
+return report;
   } catch (error) {
     throw error;
   }
@@ -112,13 +141,24 @@ async function _getReport(reportId) {
 async function closeReport(reportId, password) {
   try {
     // First, actually grab the report with that id
-    
+    const {
+      rows: [report]
+    } = await client.query(
+      `SELECT * FROM reports
+      WHERE id = $1`,
+      [reportId]
+
+    );
 
     // If it doesn't exist, throw an error with a useful message
-    
+    if (!report) {
+      throw new Error("Report does not exist with that id");
+    }
   
     // If the passwords don't match, throw an error
-    
+    if (password !== report.password) {
+      throw new Error("Password incorrect for this report, please try again");
+    }
 
     // If it has already been closed, throw an error with a useful message
     
@@ -151,7 +191,8 @@ async function createReportComment(reportId, commentFields) {
 
   try {
     // grab the report we are going to be commenting on
-
+const result = await client.query(`
+`)
 
     // if it wasn't found, throw an error saying so
     
@@ -174,7 +215,17 @@ async function createReportComment(reportId, commentFields) {
 
   } catch (error) {
     throw error;
-  }
-}
+  };
+};
 
 // export the client and all database functions below
+module.exports = {
+  client,
+  getOpenReports,
+  closeReport,
+  _getReport,
+  createReport,
+  createReportComment
+
+
+};
