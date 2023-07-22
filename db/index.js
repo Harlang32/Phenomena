@@ -25,16 +25,7 @@ const client = new Client(CONNECTION_STRING);
  * 
  * Lastly, remove the password field from every report before returning them all.
  */
-async function getOpenReports() {
-  try {
-    const { rows: reports } = await client.query(
-      `SELECT * FROM reports WHERE isOpen = true,
-      `
-    );
-    console.log("reports from getOpenReports: ", reports);
-  } catch {
 
-  }
     // first load all of the reports which are open
     
 
@@ -51,12 +42,32 @@ async function getOpenReports() {
 
 
     // finally, return the reports
-  
+  async function getOpenReports() {
+    try {
+      const { rows: reports } = await client.query(
+        `SELECT * FROM reports WHERE isOpen = true,
+      `
+      );
+      console.log("reports from getOpenReports: ", reports);
 
-  } catch (error) {
-    throw error;
+      const { rows: comments } = await client.query(
+        `
+      SELECT * FROM comments
+      WHERE "reportId" IN (${reports.map((report) => report.id)});
+      `
+      );
+
+      report.comments = comments.filter(
+        (comment) => comment.reportId === report.id
+      );
+      report.isExpired = Data.parse(report.expirationDate) < new Date();
+      delete report.password;
+
+      return reports;
+    } catch (error) {
+      throw error;
+    }
   }
-}
 
 /**
  * You should use the reportFields parameter (which is
@@ -71,10 +82,10 @@ async function getOpenReports() {
  */
 async function createReport(reportFields) {
   // Get all of the fields from the passed in object
-    const title = reportFields.title
-    const location = reportFields.location
-    const description = reportFields.description
-    const password = reportFields.password
+    const title = reportFields.title;
+    const location = reportFields.location;
+    const description = reportFields.description;
+    const password = reportFields.password;
 }
   try {
     // insert the correct fields into the reports table
@@ -161,13 +172,23 @@ async function closeReport(reportId, password) {
     }
 
     // If it has already been closed, throw an error with a useful message
-    
+    if (report !== isOpen) {
+      throw new Error("This report has already been closed");
+    }
 
     // Finally, update the report if there are no failures, as above
-    
+    await client.query(
+      `UPDATE reports;
+      SET "isOpen" = false
+      WHERE id = $1;
+      `,
+      [reportId]
+    );
 
     // Return a message stating that the report has been closed
-    
+    return {
+      message: "Report successfully closed!",
+    };
 
   } catch (error) {
     throw error;
@@ -187,31 +208,47 @@ async function closeReport(reportId, password) {
  */
 async function createReportComment(reportId, commentFields) {
   // read off the content from the commentFields
-
+const { content } = commentFields;
 
   try {
     // grab the report we are going to be commenting on
 const result = await client.query(`
-`)
+SELECT * FROM reports WHERE id = $1
+`, 
+[reportId]);
 
     // if it wasn't found, throw an error saying so
-    
+    if (!reports) {
+      throw new Error("Report not found: not comments yet");
+    }
 
     // if it is not open, throw an error saying so
-    
+    if (!report.isOpen) {
+      throw new Error("That report has been closed, no comment has been made");
+    }
 
     // if the current date is past the expiration, throw an error saying so
     // you can use Date.parse(report.expirationDate) < new Date() to check
-    
+    if (Date.parse(report.expirationDate) < new Date()) {
+      throw new Error("The discussion time has expired, no comment made");
+    }
 
     // all go: insert a comment
-    
+    const { rows: [comment] } = await client.query(
+      `INSERT into comments (content)
+      VALUES ($1)
+      RETURNING content;
+      `,
+    );
 
     // then update the expiration date to a day from now
-    
+    await client.query(`
+    UPDATE reports
+    SET "expirationDate" = current_timeStamp + interval '1 day
+    WHERE id = $1;`)
 
     // finally, return the comment
-    
+    return comment;
 
   } catch (error) {
     throw error;
