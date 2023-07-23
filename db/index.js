@@ -48,21 +48,20 @@ async function getOpenReports() {
       WHERE "isOpen" = true,
       `
     );
-    
+
     const { rows: comments } = await client.query(
       `
       SELECT * FROM comments
       WHERE "reportId" IN (${reports.map((report) => report.id)});
       `
     );
-reports.forEach((report) => {
-  report.comments = comments.filter(
-    (comment) => comment.reportId === report.id
-  );
-  report.isExpired = Data.parse(report.expirationDate) < new Date();
-  delete report.password;
-});
-
+    reports.forEach((report) => {
+      report.comments = comments.filter(
+        (comment) => comment.reportId === report.id
+      );
+      report.isExpired = Data.parse(report.expirationDate) < new Date();
+      delete report.password;
+    });
 
     return reports;
   } catch (error) {
@@ -88,28 +87,28 @@ async function createReport(reportFields) {
   const description = reportFields.description;
   const password = reportFields.password;
 
-try {
-  // insert the correct fields into the reports table
-  // remember to return the new row from the query
+  try {
+    // insert the correct fields into the reports table
+    // remember to return the new row from the query
 
-  const {
-    rows: [report],
-  } = await client.query(
-    `
+    const {
+      rows: [report],
+    } = await client.query(
+      `
     INSERT INTO reports(title, location, description, password)
     VALUE($1, $2, $3, $4)
     RETURNING *;
     `[(title, location, description, password)]
-  );
+    );
 
-  // remove the password from the returned row
-  delete report.password;
+    // remove the password from the returned row
+    delete report.password;
 
-  // return the new report
-  return report;
-} catch (error) {
-  throw error;
-}
+    // return the new report
+    return report;
+  } catch (error) {
+    throw error;
+  }
 }
 
 /**
